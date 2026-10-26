@@ -1,0 +1,16 @@
+# Enterprise agent governance template
+
+This template repository makes it easy for enterprise owners to get started with and establish settings for their agents by providing:
+* The basic file structure necessary for custom agents
+* An example agent profile in the `agents` directory
+* An empty `managed-settings.json` file, which defines governance and extensibility settings in clients
+
+> [!NOTE]
+> The example agent profile is commented out, so you can use this template repository without unintentionally making a custom agent available to your team.
+
+## Getting started
+
+1. Using this template repository, create a private repository called `.github-private` in your organization.
+1. Edit this README to best meet your needs. Consider including creation guidelines for custom agents or compliance considerations specific to your team.
+1. Edit the provided `agents/example-agent.md` file to create your first custom agent. For more information, see [Creating custom agents](https://docs.github.com/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents).
+1. Edit the `managed-settings.json` file at `copilot/managed-settings.json` to configure enterprise-wide client settings. For more information, see [Enterprise managed settings](https://docs.github.com/en/copilot/reference/enterprise-administrators/enterprise-managed-settings).
