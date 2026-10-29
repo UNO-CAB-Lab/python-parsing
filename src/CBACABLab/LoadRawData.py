@@ -1,0 +1,251 @@
+import pandas as pd
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
+import sqlite3
+import os
+import json
+
+def LoadSettings(path=None):
+    """Load module settings from settings.json (or the given JSON file)."""
+    if path is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+InstrumentColumns = LoadSettings()["InstrumentColumns"]
+
+def insertRow(con, row):
+    sql = "INSERT OR REPLACE INTO FullSurvey(respondent_id, question, response) VALUES (?, ?, ?)"
+    cur = con.cursor()
+    cur.execute(sql, row)
+    con.commit()
+    cur.close()
+
+
+def AutoDetermineQuestionIdtoQuestionNameMapping(surveyName="Survey.xlsx", surveyCSVName="Survey.csv"):
+    """
+    Automatically determine the mapping from question IDs to question names from a Qualtrics survey Excel file and CSV file.
+
+    Args:
+        surveyName (str): The path to the Qualtrics Excel file.
+        surveyCSVName (str): The path to the Qualtrics CSV file.
+
+    Returns:
+        dict: A dictionary mapping question IDs to question names.
+    """
+    qualtricsSurvey = pd.read_excel(surveyName, skiprows=[1])
+    qualtricsSurvey.rename(columns=lambda column: column.strip() if isinstance(column, str) else column, inplace=True)
+    qualtricsSurveyCSV = pd.read_csv(surveyCSVName)
+    qualtricsSurveyCSV.rename(columns=lambda column: column.strip() if isinstance(column, str) else column, inplace=True)
+    questionIdtoQuestionName = {}
+    for column_index, question_id in enumerate(qualtricsSurveyCSV.columns):
+        if isinstance(question_id, str) and question_id.startswith("QID"):
+            if column_index < len(qualtricsSurvey.columns):
+                questionIdtoQuestionName[question_id] = qualtricsSurvey.columns[column_index]
+    return questionIdtoQuestionName
+
+def LoadSurveyData(databaseName="data.db", surveyName="Survey.xlsx"):
+    """
+    Load Qualtrics survey responses from an Excel file and insert them into a SQLite database.
+
+    The FullSurvey table is dropped and recreated. The second row of the export (the question text row)
+    is skipped, and rows without a numeric iMotionsRespondent value are ignored, as are respondents 99 and 999.
+    Every column after the UserLanguage column is treated as a question. Blank responses are not stored.
+
+    Args:
+        databaseName (str; optional): The name of the SQLite database file.
+        surveyName (str; optional): The path to the Qualtrics Excel file.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the UserLanguage column cannot be found.
+    """
+    con = sqlite3.connect(databaseName)
+    cur = con.cursor()
+    cur.execute("DROP TABLE IF EXISTS FullSurvey")
+    cur.execute("CREATE TABLE FullSurvey (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, response TEXT NOT NULL, UNIQUE(respondent_id, question) ON CONFLICT REPLACE)")
+    con.commit()
+    cur.close()
+    qualtricsSurvey = pd.read_excel(surveyName, skiprows=[1])
+    qualtricsSurvey.rename(columns=lambda column: column.strip() if isinstance(column, str) else column, inplace=True)
+
+    qualtricsSurvey["iMotionsRespondent"] = pd.to_numeric(
+        qualtricsSurvey["iMotionsRespondent"], errors="coerce"
+    )
+    qualtricsSurvey = qualtricsSurvey.loc[qualtricsSurvey["iMotionsRespondent"].notna()].copy()
+
+    marker_index = next(
+        (
+            index
+            for index, column in enumerate(qualtricsSurvey.columns)
+            if "".join(str(column).casefold().split()) == "userlanguage"
+        ),
+        None,
+    )
+    if marker_index is None:
+        raise ValueError("Could not find 'User Language' or 'UserLanguage' column")
+    
+    for _, row in qualtricsSurvey.iterrows():
+        respondent_id = int(row["iMotionsRespondent"])
+        if respondent_id in (99, 999):
+            continue
+        for question in qualtricsSurvey.columns[marker_index + 1:]:
+            response = row[question]
+            if pd.isna(response):
+                continue
+            response = str(response)
+            if response.strip():
+                insertRow(con, (respondent_id, str(question), response))
+
+
+def insertSensorRow(con, row):
+    cur = con.cursor()
+    cur.execute("INSERT INTO SensorData (respondent_id, question, pupil, duration, tag) VALUES (?, ?, ?, ?, ?)", row)
+    con.commit()
+    cur.close()
+
+def insertFaceRow(con, row):
+    cur = con.cursor()
+    cur.execute("INSERT INTO InstrumentData (respondent_id, question, property, value, tag) VALUES (?, ?, ?, ?, ?)", row)
+    con.commit()
+    cur.close()
+
+def ExtractData(con, df, respondentid, boundedboxes=None, tag="default", questionIdtoQuestionName=None):
+    df = df.rename(columns=lambda column: column.strip() if isinstance(column, str) else column)
+
+    if boundedboxes is not None:
+        if {'Interpolated Gaze X', 'Interpolated Gaze Y'}.issubset(df.columns):
+            gaze_x, gaze_y = 'Interpolated Gaze X', 'Interpolated Gaze Y'
+        elif {'Gaze X', 'Gaze Y'}.issubset(df.columns):
+            gaze_x, gaze_y = 'Gaze X', 'Gaze Y'
+        else:
+            raise ValueError("Missing gaze columns: expected Interpolated Gaze X and Y or Gaze X and Y")
+
+        master_mask = pd.Series(False, index=df.index)
+        for x_min, x_max, y_min, y_max in boundedboxes:
+            bounds = (x_min, x_max, y_min, y_max)
+            if any(not isinstance(v, (int, float)) or isinstance(v, bool) for v in bounds):
+                raise ValueError(f"Bounding box values must be numbers: {bounds}")
+            if x_min >= x_max or y_min >= y_max:
+                raise ValueError(f"Invalid bounding box: ({x_min}, {x_max}, {y_min}, {y_max})")
+            current_mask = (
+                (df[gaze_x] >= x_min) & (df[gaze_x] <= x_max) & 
+                (df[gaze_y] >= y_min) & (df[gaze_y] <= y_max)
+            )
+            master_mask |= current_mask
+        filtered_df = df[master_mask].copy()
+    else:
+        filtered_df = df.copy()
+    
+
+    listOfQuestions = (
+        df.loc[
+            df['MarkerName'].notna()
+            & (df['MarkerName'].str.strip() != '')
+            & (~df['MarkerName'].str.endswith('_end', na=False)),
+            ['Timestamp', 'MarkerName']
+        ]
+        .drop_duplicates(subset=['MarkerName'], keep='first')
+    )
+    listOfQuestionEnds = (
+        df.loc[
+            df['MarkerName'].notna()
+            & (df['MarkerName'].str.strip() != '')
+            & (df['MarkerName'].str.endswith('_end', na=False)),
+            ['Timestamp', 'MarkerName']
+        ]
+        .drop_duplicates(subset=['MarkerName'], keep='last')
+    )
+
+    starts = listOfQuestions.copy()
+    starts['question'] = starts['MarkerName'].str.strip()
+
+    ends = listOfQuestionEnds.copy()
+    ends['question'] = ends['MarkerName'].str.strip().str.replace(r'_end$', '', regex=True)
+
+    listOfQuestions = (
+        starts.merge(
+            ends[['Timestamp', 'question']],
+            on='question',
+            how='inner',
+            suffixes=('_start', '_end')
+        )
+        .rename(columns={'Timestamp_start': 'start_time', 'Timestamp_end': 'end_time'})
+        [['question', 'start_time', 'end_time']]
+        .sort_values('start_time')
+        .reset_index(drop=True)
+    )
+    for _, q in listOfQuestions.iterrows():
+        question = q['question']
+        if questionIdtoQuestionName and question in questionIdtoQuestionName:
+            question_name = questionIdtoQuestionName[question]
+        else:
+            question_name = str(question).strip()
+        start_time = q['start_time']
+        end_time = q['end_time']
+
+        df2 = filtered_df.loc[
+            (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
+            ['ET_PupilLeft', 'ET_PupilRight']
+        ].copy()
+
+        df3 = filtered_df.loc[
+            (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
+            ['Fixation Duration']
+        ].copy()
+        for col in InstrumentColumns:
+            if col in filtered_df.columns:
+                dfTemp = filtered_df.loc[
+                    (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
+                    col
+                ].copy()
+                featureMean = dfTemp.mean()
+                if not pd.isna(featureMean):
+                    row = (respondentid, question_name, col, featureMean, tag)
+                    insertFaceRow(con, row)
+
+        df2['ET_PupilLeft'] = pd.to_numeric(df2['ET_PupilLeft'], errors='coerce')
+        df2['ET_PupilRight'] = pd.to_numeric(df2['ET_PupilRight'], errors='coerce')
+        df2 = df2.dropna(subset=['ET_PupilLeft', 'ET_PupilRight'])
+        pupil = (df2['ET_PupilLeft'].mean() + df2['ET_PupilRight'].mean()) / 2
+        duration = df3['Fixation Duration'].mean() 
+        row = (respondentid, question_name, float(pupil), float(duration), tag)
+        insertSensorRow(con, row)
+
+def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False, questionIdtoQuestionName = None):
+    """
+    Load sensor data from a folder and insert it into a SQLite database.
+
+    Args:
+        databaseName (str; optional): The name of the SQLite database file.
+        sensorFolder (str; optional): The path to the folder containing the sensor data.
+        boundedboxes (list; optional): A list of bounded boxes to filter the data.
+        tag (str; optional): A tag to associate with the data.
+        rebuild (bool; optional): Whether to rebuild the database.
+        low_memory (bool; optional): Whether to use low memory mode when reading CSV files.
+
+    Returns:
+        None
+    """
+    con = sqlite3.connect(databaseName)
+    cur = con.cursor()
+    if rebuild:
+        cur.execute("DROP TABLE IF EXISTS SensorData")
+        cur.execute("DROP TABLE IF EXISTS InstrumentData")
+    cur.execute("CREATE TABLE IF NOT EXISTS SensorData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, pupil REAL, duration REAL, tag TEXT, UNIQUE(respondent_id, question, tag) ON CONFLICT REPLACE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS InstrumentData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, property TEXT NOT NULL, value REAL, tag TEXT, UNIQUE(respondent_id, question, property, tag) ON CONFLICT REPLACE)")
+    con.commit()
+    cur.close()
+    folder = sensorFolder
+    if not os.path.isdir(folder):
+        raise FileNotFoundError(f"Sensor folder does not exist: {folder}")
+    
+    f = os.listdir(folder)
+    for file in f:
+        filename, file_extension = os.path.splitext(file)
+        if file_extension == '.csv':
+            _, respondentid = filename.split('_')
+            df = pd.read_csv(folder+file, comment='#', low_memory=low_memory)
+            ExtractData(con, df, int(respondentid), boundedboxes, tag, questionIdtoQuestionName)

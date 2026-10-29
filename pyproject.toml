@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "CBACABLab"
+version = "0.0.1"
+description = "Tools for loading, joining, and plotting survey and iMotions sensor data."
+license = "MIT"
+authors = [
+  { name="Ben Smith", email="bosmith@unomaha.edu" },
+]
+maintainers = [
+  { name="Ben Smith", email="bosmith@unomaha.edu" },
+]
+readme = "README.md"
+keywords = ["Survey", "Eye Tracking", "Facial Expression", "iMotions", "Qualtrics"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.9",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.21.0",
+    "pandas>=1.3.0",
+    "openpyxl>=3.0.0",
+    "matplotlib>=3.4.0",
+    "seaborn>=0.11.0",
+    "statsmodels>=0.13.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/UNO-CAB-Lab/python-parsing"
+"Bug Tracker" = "https://github.com/UNO-CAB-Lab/python-parsing/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/CBACABLab"]
