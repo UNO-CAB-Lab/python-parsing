@@ -71,6 +71,11 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
 
         master_mask = pd.Series(False, index=df.index)
         for x_min, x_max, y_min, y_max in boundedboxes:
+            bounds = (x_min, x_max, y_min, y_max)
+            if any(not isinstance(v, (int, float)) or isinstance(v, bool) for v in bounds):
+                raise ValueError(f"Bounding box values must be numbers: {bounds}")
+            if x_min >= x_max or y_min >= y_max:
+                raise ValueError(f"Invalid bounding box: ({x_min}, {x_max}, {y_min}, {y_max})")
             current_mask = (
                 (df[gaze_x] >= x_min) & (df[gaze_x] <= x_max) & 
                 (df[gaze_y] >= y_min) & (df[gaze_y] <= y_max)
