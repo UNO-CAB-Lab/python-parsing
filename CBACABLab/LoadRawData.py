@@ -43,6 +43,8 @@ def LoadSurveyData(databaseName="data.db", surveyName="Survey.xlsx"):
     
     for _, row in qualtricsSurvey.iterrows():
         respondent_id = int(row["iMotionsRespondent"])
+        if respondent_id in (99, 999):
+            continue
         for question in qualtricsSurvey.columns[marker_index + 1:]:
             response = row[question]
             if pd.isna(response):
