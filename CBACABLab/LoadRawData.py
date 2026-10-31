@@ -176,6 +176,7 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
     ]
     for _, q in listOfQuestions.iterrows():
         question = q['question']
+        question_name = str(question).strip()
         start_time = q['start_time']
         end_time = q['end_time']
 
@@ -188,29 +189,24 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
             (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
             ['Fixation Duration']
         ].copy()
-
         for col in EMFACSColums:
-            emfacs = {}
             if col in filtered_df.columns:
                 dfTemp = filtered_df.loc[
                     (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
                     col
                 ].copy()
-                emfacs[col] = dfTemp.mean()
+                featureMean = dfTemp.mean()
+                if not pd.isna(featureMean):
+                    row = (respondentid, question_name, col, featureMean, tag)
+                    insertFaceRow(con, row)
 
         df2['ET_PupilLeft'] = pd.to_numeric(df2['ET_PupilLeft'], errors='coerce')
         df2['ET_PupilRight'] = pd.to_numeric(df2['ET_PupilRight'], errors='coerce')
         df2 = df2.dropna(subset=['ET_PupilLeft', 'ET_PupilRight'])
         pupil = (df2['ET_PupilLeft'].mean() + df2['ET_PupilRight'].mean()) / 2
-        duration = df3['Fixation Duration'].mean()
-        question_name = str(question).strip()
+        duration = df3['Fixation Duration'].mean() 
         row = (respondentid, question_name, float(pupil), float(duration), tag)
         insertSensorRow(con, row)
-
-        for prop, value in emfacs.items():
-            row = (respondentid, question_name, prop, float(value), tag)
-            if not pd.isna(value):
-                insertFaceRow(con, row)
 
 def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False):
     con = sqlite3.connect(databaseName)
