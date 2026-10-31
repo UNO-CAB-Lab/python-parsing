@@ -3,7 +3,23 @@ import sqlite3
 import pandas as pd
 
 
-def LoadQuestionsWide(databaseName, questions):
+def ListQuestions(databaseName="data.db"):
+    """Return a list of all questions in the FullSurvey table.
+
+    databaseName may be a path or an open sqlite3 connection.
+    """
+    owns_connection = not isinstance(databaseName, sqlite3.Connection)
+    con = sqlite3.connect(databaseName) if owns_connection else databaseName
+    try:
+        df = pd.read_sql_query(
+            "SELECT DISTINCT question FROM FullSurvey ORDER BY question", con
+        )
+    finally:
+        if owns_connection:
+            con.close()
+    return df["question"].tolist()
+
+def LoadQuestionsWide(questions, databaseName="data.db"):
     """Return one row per respondent with one column per question.
 
     Pivots the long-format FullSurvey table (respondent_id, question, response)

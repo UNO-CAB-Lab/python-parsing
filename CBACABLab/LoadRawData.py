@@ -13,9 +13,6 @@ def insertRow(con, row):
 
 
 def LoadSurveyData(databaseName="data.db", surveyName="Survey.xlsx"):
-    if not os.path.isfile(surveyName):
-        raise FileNotFoundError(f"Survey file does not exist: {surveyName}")
-    
     con = sqlite3.connect(databaseName)
     cur = con.cursor()
     cur.execute("DROP TABLE IF EXISTS FullSurvey")
@@ -57,6 +54,12 @@ def LoadSurveyData(databaseName="data.db", surveyName="Survey.xlsx"):
 def insertSensorRow(con, row):
     cur = con.cursor()
     cur.execute("INSERT INTO SensorData (respondent_id, question, pupil, duration, tag) VALUES (?, ?, ?, ?, ?)", row)
+    con.commit()
+    cur.close()
+
+def insertFaceRow(con, row):
+    cur = con.cursor()
+    cur.execute("INSERT INTO FaceData (respondent_id, question, property, value, tag) VALUES (?, ?, ?, ?, ?)", row)
     con.commit()
     cur.close()
 
@@ -125,7 +128,52 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
         .sort_values('start_time')
         .reset_index(drop=True)
     )
-
+    EMFACSColums = [
+        "Anger",
+        "Contempt",
+        "Disgust",
+        "Fear",
+        "Joy",
+        "Sadness",
+        "Surprise",
+        "Engagement",
+        "Adaptive Engagement",
+        "Valence",
+        "Adaptive Valence",
+        "Sentimentality",
+        "Confusion",
+        "Neutral",
+        "Attention",
+        "Blink",
+        "BlinkRate",
+        "Speaking",
+        "Yawn",
+        "Pain",
+        "Brow Furrow",
+        "Brow Raise",
+        "Cheek Raise",
+        "Chin Raise",
+        "Dimpler",
+        "Eye Closure",
+        "Eye Widen",
+        "Inner Brow Raise",
+        "Jaw Drop",
+        "Lip Corner Depressor",
+        "Lip Press",
+        "Lip Pucker",
+        "Lip Stretch",
+        "Lip Suck",
+        "Lid Tighten",
+        "Mouth Open",
+        "Nose Wrinkle",
+        "Smile",
+        "Smirk",
+        "Upper Lip Raise",
+        "Pitch",
+        "Yaw",
+        "Roll",
+        "Interocular Distance"
+    ]
     for _, q in listOfQuestions.iterrows():
         question = q['question']
         start_time = q['start_time']
@@ -141,6 +189,15 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
             ['Fixation Duration']
         ].copy()
 
+        for col in EMFACSColums:
+            emfacs = {}
+            if col in filtered_df.columns:
+                dfTemp = filtered_df.loc[
+                    (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
+                    col
+                ].copy()
+                emfacs[col] = dfTemp.mean()
+
         df2['ET_PupilLeft'] = pd.to_numeric(df2['ET_PupilLeft'], errors='coerce')
         df2['ET_PupilRight'] = pd.to_numeric(df2['ET_PupilRight'], errors='coerce')
         df2 = df2.dropna(subset=['ET_PupilLeft', 'ET_PupilRight'])
@@ -150,12 +207,19 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
         row = (respondentid, question_name, float(pupil), float(duration), tag)
         insertSensorRow(con, row)
 
+        for prop, value in emfacs.items():
+            row = (respondentid, question_name, prop, float(value), tag)
+            if not pd.isna(value):
+                insertFaceRow(con, row)
+
 def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False):
     con = sqlite3.connect(databaseName)
     cur = con.cursor()
     if rebuild:
         cur.execute("DROP TABLE IF EXISTS SensorData")
+        cur.execute("DROP TABLE IF EXISTS FaceData")
     cur.execute("CREATE TABLE IF NOT EXISTS SensorData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, pupil REAL, duration REAL, tag TEXT, UNIQUE(respondent_id, question, tag) ON CONFLICT REPLACE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS FaceData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, property TEXT NOT NULL, value REAL, tag TEXT, UNIQUE(respondent_id, question, property, tag) ON CONFLICT REPLACE)")
     con.commit()
     cur.close()
     folder = sensorFolder
