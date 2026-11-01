@@ -44,5 +44,101 @@
         "Yaw",
         "Roll",
         "Interocular Distance"
-    ]
+    ],
+    "LikertScales": {
+        "agree4": {
+            "Strongly disagree": 0,
+            "Disagree": 1,
+            "Agree": 2,
+            "Strongly agree": 3
+        },
+        "agree5": {
+            "Strongly disagree": 0,
+            "Disagree": 1,
+            "Neither agree nor disagree": 2,
+            "Agree": 3,
+            "Strongly agree": 4
+        },
+        "agree6": {
+            "Strongly disagree": 0,
+            "Disagree": 1,
+            "Somewhat disagree": 2,
+            "Somewhat agree": 3,
+            "Agree": 4,
+            "Strongly agree": 5
+        },
+        "agree7": {
+            "Strongly disagree": 0,
+            "Disagree": 1,
+            "Somewhat disagree": 2,
+            "Neither agree nor disagree": 3,
+            "Somewhat agree": 4,
+            "Agree": 5,
+            "Strongly agree": 6
+        },
+        "helpful4": {
+            "Very unhelpful": 0,
+            "Unhelpful": 1,
+            "Helpful": 2,
+            "Very helpful": 3
+        },
+        "helpful5": {
+            "Very unhelpful": 0,
+            "Unhelpful": 1,
+            "Neither helpful nor unhelpful": 2,
+            "Helpful": 3,
+            "Very helpful": 4
+        },
+        "helpful6": {
+            "Very unhelpful": 0,
+            "Unhelpful": 1,
+            "Somewhat unhelpful": 2,
+            "Somewhat helpful": 3,
+            "Helpful": 4,
+            "Very helpful": 5
+        },
+        "helpful7": {
+            "Very unhelpful": 0,
+            "Unhelpful": 1,
+            "Somewhat unhelpful": 2,
+            "Neither helpful nor unhelpful": 3,
+            "Somewhat helpful": 4,
+            "Helpful": 5,
+            "Very helpful": 6
+        },
+        "satisfied4": {
+            "Very dissatisfied": 0,
+            "Dissatisfied": 1,
+            "Satisfied": 2,
+            "Very satisfied": 3
+        },
+        "satisfied5": {
+            "Very dissatisfied": 0,
+            "Dissatisfied": 1,
+            "Neither satisfied nor dissatisfied": 2,
+            "Satisfied": 3,
+            "Very satisfied": 4
+        },
+        "satisfied6": {
+            "Very dissatisfied": 0,
+            "Dissatisfied": 1,
+            "Somewhat dissatisfied": 2,
+            "Somewhat satisfied": 3,
+            "Satisfied": 4,
+            "Very satisfied": 5
+        },
+        "satisfied7": {
+            "Very dissatisfied": 0,
+            "Dissatisfied": 1,
+            "Somewhat dissatisfied": 2,
+            "Neither satisfied nor dissatisfied": 3,
+            "Somewhat satisfied": 4,
+            "Satisfied": 5,
+            "Very satisfied": 6
+        },
+        "numeric4": {"1": 0, "2": 1, "3": 2, "4": 3},
+        "numeric5": {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4},
+        "numeric6": {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5},
+        "numeric7": {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6}
+    }
 }
