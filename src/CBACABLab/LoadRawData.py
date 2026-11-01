@@ -3,6 +3,16 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 import sqlite3
 import os
+import json
+
+def LoadSettings(path=None):
+    """Load module settings from settings.json (or the given JSON file)."""
+    if path is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+EMFACSColumns = LoadSettings()["EMFACSColumns"]
 
 def insertRow(con, row):
     sql = "INSERT OR REPLACE INTO FullSurvey(respondent_id, question, response) VALUES (?, ?, ?)"
@@ -13,6 +23,23 @@ def insertRow(con, row):
 
 
 def LoadSurveyData(databaseName="data.db", surveyName="Survey.xlsx"):
+    """
+    Load Qualtrics survey responses from an Excel file and insert them into a SQLite database.
+
+    The FullSurvey table is dropped and recreated. The second row of the export (the question text row)
+    is skipped, and rows without a numeric iMotionsRespondent value are ignored, as are respondents 99 and 999.
+    Every column after the UserLanguage column is treated as a question. Blank responses are not stored.
+
+    Args:
+        databaseName (str): The name of the SQLite database file.
+        surveyName (str): The path to the Qualtrics Excel file.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the UserLanguage column cannot be found.
+    """
     con = sqlite3.connect(databaseName)
     cur = con.cursor()
     cur.execute("DROP TABLE IF EXISTS FullSurvey")
@@ -128,52 +155,6 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
         .sort_values('start_time')
         .reset_index(drop=True)
     )
-    EMFACSColums = [
-        "Anger",
-        "Contempt",
-        "Disgust",
-        "Fear",
-        "Joy",
-        "Sadness",
-        "Surprise",
-        "Engagement",
-        "Adaptive Engagement",
-        "Valence",
-        "Adaptive Valence",
-        "Sentimentality",
-        "Confusion",
-        "Neutral",
-        "Attention",
-        "Blink",
-        "BlinkRate",
-        "Speaking",
-        "Yawn",
-        "Pain",
-        "Brow Furrow",
-        "Brow Raise",
-        "Cheek Raise",
-        "Chin Raise",
-        "Dimpler",
-        "Eye Closure",
-        "Eye Widen",
-        "Inner Brow Raise",
-        "Jaw Drop",
-        "Lip Corner Depressor",
-        "Lip Press",
-        "Lip Pucker",
-        "Lip Stretch",
-        "Lip Suck",
-        "Lid Tighten",
-        "Mouth Open",
-        "Nose Wrinkle",
-        "Smile",
-        "Smirk",
-        "Upper Lip Raise",
-        "Pitch",
-        "Yaw",
-        "Roll",
-        "Interocular Distance"
-    ]
     for _, q in listOfQuestions.iterrows():
         question = q['question']
         question_name = str(question).strip()
@@ -189,7 +170,7 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
             (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
             ['Fixation Duration']
         ].copy()
-        for col in EMFACSColums:
+        for col in EMFACSColumns:
             if col in filtered_df.columns:
                 dfTemp = filtered_df.loc[
                     (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
@@ -209,6 +190,20 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
         insertSensorRow(con, row)
 
 def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False):
+    """
+    Load sensor data from a folder and insert it into a SQLite database.
+
+    Args:
+        databaseName (str): The name of the SQLite database file.
+        sensorFolder (str): The path to the folder containing the sensor data.
+        boundedboxes (list): A list of bounded boxes to filter the data.
+        tag (str): A tag to associate with the data.
+        rebuild (bool): Whether to rebuild the database.
+        low_memory (bool): Whether to use low memory mode when reading CSV files.
+
+    Returns:
+        None
+    """
     con = sqlite3.connect(databaseName)
     cur = con.cursor()
     if rebuild:
