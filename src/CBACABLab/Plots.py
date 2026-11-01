@@ -64,6 +64,28 @@ def ManageKDEProcess(bandwidth, data):
     return xinterval, yprojections
 
 def CreateLOESSPlots(data, xcolumn, ycolumn, bandwidths, linetypes=False, save=False, xlabel="X", ylabel="Y", title="LOESS", xStep=2, figsize=(9, 5)):
+    """
+    Plot LOESS curves for one response column at the requested bandwidths.
+
+    The source observations are shown as a scatter plot. If ``save`` is provided,
+    the figure is saved as a PDF before being displayed.
+
+    Args:
+        data (pandas.DataFrame): The observations used to calculate and plot the curves.
+        xcolumn (str): The column to use for the x-axis.
+        ycolumn (str): The column to use for the y-axis.
+        bandwidths (list): The LOESS bandwidths to plot.
+        linetypes (list or bool): Line styles for the curves, or False to use defaults.
+        save (str or bool): Filename prefix for the optional PDF output, or False to skip saving.
+        xlabel (str): The x-axis label.
+        ylabel (str): The y-axis label.
+        title (str): The plot title.
+        xStep (int or float): The interval between x-axis ticks.
+        figsize (tuple): The figure width and height in inches.
+
+    Returns:
+        None
+    """
     defaultLinestyle = ['-', '--', ':', '-.']
     if linetypes is False:
         linetypes = []
@@ -92,6 +114,28 @@ def CreateLOESSPlots(data, xcolumn, ycolumn, bandwidths, linetypes=False, save=F
     plt.show()
 
 def CreateMultipleLOESSPlots(data, xcolumn, ycolumns, bandwidths = False, linetypes=False, save=False, xlabel="X", ylabel="Y", title="Multiple LOESS Plots", xStep=2, figsize=(9, 5)):   
+    """
+    Plot LOESS curves for multiple response columns and bandwidths.
+
+    If ``bandwidths`` is False, bandwidths 0.3, 0.4, and 0.5 are used. If
+    ``save`` is provided, the figure is saved as both PDF and SVG before display.
+
+    Args:
+        data (pandas.DataFrame): The observations used to calculate and plot the curves.
+        xcolumn (str): The column to use for the x-axis.
+        ycolumns (list): The response columns to plot.
+        bandwidths (list, float, or bool): LOESS bandwidths to plot, or False to use defaults.
+        linetypes (list or bool): Line styles for the curves, or False to use defaults.
+        save (str or bool): Filename prefix for the optional PDF and SVG outputs, or False to skip saving.
+        xlabel (str): The x-axis label.
+        ylabel (str): The y-axis label.
+        title (str): The plot title.
+        xStep (int or float): The interval between x-axis ticks.
+        figsize (tuple): The figure width and height in inches.
+
+    Returns:
+        None
+    """
     if bandwidths is False:
         bandwidths = [0.3, 0.4, 0.5]
     if not isinstance(bandwidths, list):
@@ -135,6 +179,26 @@ def CreateMultipleLOESSPlots(data, xcolumn, ycolumns, bandwidths = False, linety
 
 
 def CreateMultipleLinePlots(data, xcolumn, ycolumns, linetypes=False, save=False, xlabel="X", ylabel="Y", title="Multiple Line Plots", xStep=2, figsize=(9, 6)):
+    """
+    Plot multiple response columns as lines against a shared x-axis column.
+
+    If ``save`` is provided, the figure is saved as both PDF and SVG before display.
+
+    Args:
+        data (pandas.DataFrame): The observations to plot.
+        xcolumn (str): The column to use for the x-axis.
+        ycolumns (list): The response columns to plot.
+        linetypes (list or bool): Line styles for the series, or False to use defaults.
+        save (str or bool): Filename prefix for the optional PDF and SVG outputs, or False to skip saving.
+        xlabel (str): The x-axis label.
+        ylabel (str): The y-axis label.
+        title (str): The plot title.
+        xStep (int or float): The interval between x-axis ticks.
+        figsize (tuple): The figure width and height in inches.
+
+    Returns:
+        None
+    """
     defaultColors = ['black']*4 + ['gray']*4
     colors = []
     for i, item in enumerate(cycle(defaultColors)):
@@ -167,6 +231,31 @@ def CreateMultipleLinePlots(data, xcolumn, ycolumns, linetypes=False, save=False
     plt.show()
 
 def ProjectKDEPlot(data, label='Score', labels=False, linetypes=False, save=False, lower=False, upper=False, bottom=0, top=False, mean=False, bwMultiplier = 1, sameBandwidth=False):
+    """
+    Plot kernel density estimates for a collection of data series.
+
+    Bandwidths are calculated with Silverman's rule and scaled by ``bwMultiplier``.
+    If ``sameBandwidth`` is True, the first series' bandwidth is used for all
+    series. If ``save`` is provided, the figure is saved as both PDF and SVG
+    before display; the calculated bandwidths are also printed.
+
+    Args:
+        data (list): The data series for which to calculate density estimates.
+        label (str): The x-axis label.
+        labels (list or bool): Legend labels for the series, or False to hide the legend.
+        linetypes (list or bool): Line styles for the series, or False to use defaults.
+        save (str or bool): Filename prefix for the optional PDF and SVG outputs, or False to skip saving.
+        lower (float or bool): Lower x-axis limit, or False to use the computed default.
+        upper (float or bool): Upper x-axis limit, or False to use the computed default.
+        bottom (float): Lower y-axis limit.
+        top (float or bool): Upper y-axis limit, or False to use the computed default.
+        mean (bool): Whether to draw a vertical line at each series' mean.
+        bwMultiplier (float): Factor by which to scale the calculated bandwidths.
+        sameBandwidth (bool): Whether to use the first series' bandwidth for every series.
+
+    Returns:
+        None
+    """
     showlegend = True
     if labels is False:
         labels = ['',]*len(data)
@@ -228,6 +317,31 @@ def ProjectKDEPlot(data, label='Score', labels=False, linetypes=False, save=Fals
 
 
 def makeHeatMap(displayData, heatmapData, xlabel, ylabel, title, save=False, figsize=(11, 7), label=None, vmin=None, vmax=None, reversed=False, yticklabels=None):
+    """
+    Display a heatmap with values from ``heatmapData`` and annotations from ``displayData``.
+
+    Rows are restricted to their common index, and columns to those present in
+    both data frames. The ``_marginal`` suffix is removed from ``displayData``'s
+    index in place. If ``save`` is provided, the figure is saved as both PDF and
+    SVG before display.
+
+    Args:
+        displayData (pandas.DataFrame): Values to annotate in each heatmap cell.
+        heatmapData (pandas.DataFrame): Values that determine the heatmap colors.
+        xlabel (str): The x-axis label.
+        ylabel (str): The y-axis label.
+        title (str): The plot title.
+        save (str or bool): Filename prefix for the optional PDF and SVG outputs, or False to skip saving.
+        figsize (tuple): The figure width and height in inches.
+        label (str or None): The colorbar label.
+        vmin (float or None): Lower bound of the heatmap color scale.
+        vmax (float or None): Upper bound of the heatmap color scale.
+        reversed (bool): Whether to reverse the grayscale color map.
+        yticklabels (list or bool or None): Labels to use for the y-axis ticks.
+
+    Returns:
+        None
+    """
     displayData.index = displayData.index.str.replace('_marginal', '', regex=False)
     common_index = displayData.index.intersection(heatmapData.index)
     displayData = displayData.loc[common_index, :]
