@@ -110,7 +110,8 @@ def CreateLOESSPlots(data, xcolumn, ycolumn, bandwidths, linetypes=False, save=F
         ax.plot(xinterval, yprojections, label='Bandwidth = ' + str(round(bandwidths[index], 4)), color='black', linestyle=linetypes[index])
     ax.legend()
     if save:
-        plt.savefig(save + '.pdf')
+        plt.savefig(save + '.pdf', bbox_inches='tight')
+        plt.savefig(save + '.svg', bbox_inches='tight')
     plt.show()
 
 def CreateMultipleLOESSPlots(data, xcolumn, ycolumns, bandwidths = False, linetypes=False, save=False, xlabel="X", ylabel="Y", title="Multiple LOESS Plots", xStep=2, figsize=(9, 5)):   
