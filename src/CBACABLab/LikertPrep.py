@@ -1,6 +1,6 @@
 import pandas as pd
 from .LoadRawData import LoadSettings
-from .LoadSQLData import LoadSurveyWithSensorDataLong, LoadSurveyWithSensorDataWide
+from .LoadSQLData import LoadSurveyWithSensorDataWide
 
 
 def LikertToK(responses, scale, settings=None):
@@ -41,8 +41,8 @@ def AddLikertColumns(data, scales, question_column="question", response_column="
 
     Args:
         data (pandas.DataFrame): Data with a question column and a response column, such as the output of CreatePanelData.
-        scales (str, dict): A scale name or mapping applied to every question, or a dict of
-            {question: scale name or mapping} giving each question its own scale.
+        scales (str or dict): A scale name applied to every question, or a dict of
+            {question: scale name or {label: k} mapping} giving each question its own scale.
         question_column (str, optional): Column holding the question.
         response_column (str, optional): Column holding the Likert response.
         settings (dict, optional): Pre-loaded settings.
@@ -57,8 +57,7 @@ def AddLikertColumns(data, scales, question_column="question", response_column="
     settings = settings or LoadSettings()
     result = data.copy()
     questions = result[question_column].dropna().unique()
-    if isinstance(scales, (str, dict)) and (isinstance(scales, str) or not set(questions) & set(scales)):
-        # A single scale (name or label mapping) used for every question
+    if isinstance(scales, str):
         scales = {question: scales for question in questions}
     missing = [question for question in questions if question not in scales]
     if missing:
@@ -79,20 +78,30 @@ def AddLikertColumns(data, scales, question_column="question", response_column="
 
 def CreatePanelData(question_level_columns, respondent_level_columns, tagFilter=None, faceProperties=None, databaseName="data.db"):
     """
-    Create a panel dataset by merging survey responses with sensor data.
+    Create a panel dataset with exactly one row per respondent and question-level question.
+
+    Question-level data comes from LoadSurveyWithSensorDataWide: question, response, and one column per
+    sensor measure and tag (pupil_<tag>, duration_<tag>, <property>_<tag>).
+    Respondent-level questions are added as one response column each, with their sensor and face columns suffixed by
+    the question name, repeated on every row for that respondent.
 
     Args:
         question_level_columns (list): List of question-level columns to include.
         respondent_level_columns (list): List of respondent-level columns to include.
-        tagFilter (str, optional): Filter for specific tags in the sensor data.
-        faceProperties (list, optional): List of face properties to include from the sensor data.
+        tagFilter (list, tuple, or set, optional): Only include these tags from the sensor data.
+        faceProperties (list, tuple, or set, optional): Face properties to include from the sensor data.
         databaseName (str, optional): Name of the SQLite database file.
 
     Returns:
         pandas.DataFrame: Merged panel dataset.
     """
-    respondent_data = LoadSurveyWithSensorDataWide(databaseName=databaseName, questions=respondent_level_columns, tagFilter=tagFilter, faceProperties=faceProperties)
-    question_data = LoadSurveyWithSensorDataLong(databaseName=databaseName, questions=question_level_columns, tagFilter=tagFilter, faceProperties=faceProperties)
+    respondent_data = LoadSurveyWithSensorDataWide(respondent_level_columns, databaseName=databaseName, tagFilter=tagFilter, faceProperties=faceProperties)
+    # One row per respondent: the response keeps the question name, other columns are suffixed with it
+    respondent_data = respondent_data.rename(columns={"response": ""}).set_index(["respondent_id", "question"])
+    respondent_data = respondent_data.unstack("question")
+    respondent_data.columns = [question if not column else f"{column}_{question}" for column, question in respondent_data.columns]
+    respondent_data = respondent_data.reset_index()
+    question_data = LoadSurveyWithSensorDataWide(question_level_columns, databaseName=databaseName, tagFilter=tagFilter, faceProperties=faceProperties)
     merged_data = pd.merge(question_data, respondent_data, on="respondent_id", how="left")
     return merged_data
 
