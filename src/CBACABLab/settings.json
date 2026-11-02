@@ -56,6 +56,7 @@
             "Strongly disagree": 0,
             "Disagree": 1,
             "Neither agree nor disagree": 2,
+            "Neither agree or disagree": 2,
             "Agree": 3,
             "Strongly agree": 4
         },
@@ -72,6 +73,7 @@
             "Disagree": 1,
             "Somewhat disagree": 2,
             "Neither agree nor disagree": 3,
+            "Neither agree or disagree": 3,
             "Somewhat agree": 4,
             "Agree": 5,
             "Strongly agree": 6
@@ -114,10 +116,12 @@
         },
         "satisfied5": {
             "Very dissatisfied": 0,
+            "Highly dissatisfied": 0,
             "Dissatisfied": 1,
             "Neither satisfied nor dissatisfied": 2,
             "Satisfied": 3,
-            "Very satisfied": 4
+            "Very satisfied": 4,
+            "Highly satisfied": 4
         },
         "satisfied6": {
             "Very dissatisfied": 0,
@@ -135,6 +139,48 @@
             "Somewhat satisfied": 4,
             "Satisfied": 5,
             "Very satisfied": 6
+        },
+        "agree5_completely": {
+            "Completely disagree": 0,
+            "Somewhat disagree": 1,
+            "Neither agree or disagree": 2,
+            "Neither agree nor disagree": 2,
+            "Somewhat agree": 3,
+            "Completely agree": 4
+        },
+        "quality5": {
+            "Very poor": 0,
+            "Poor": 1,
+            "Fair": 2,
+            "Good": 3,
+            "Excellent": 4
+        },
+        "quality7": {
+            "Very poor": 0,
+            "Poor": 1,
+            "Fair": 2,
+            "Good": 3,
+            "Very good": 4,
+            "Excellent": 5,
+            "Exceptional": 6
+        },
+        "happy7": {
+            "Extremely unhappy": 0,
+            "Unhappy": 1,
+            "Somewhat unhappy": 2,
+            "Neither happy nor unhappy": 3,
+            "Somewhat happy": 4,
+            "Happy": 5,
+            "Extremely happy": 6
+        },
+        "satisfied7_completely": {
+            "Completely unsatisfied": 0,
+            "Moderately unsatisfied": 1,
+            "Unsatisfied": 2,
+            "Neither satisfied nor unsatisfied": 3,
+            "Moderately satisfied": 4,
+            "Satisfied": 5,
+            "Completely satisfied": 6
         },
         "numeric4": {"1": 0, "2": 1, "3": 2, "4": 3},
         "numeric5": {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4},

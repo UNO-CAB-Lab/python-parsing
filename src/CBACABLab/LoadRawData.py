@@ -31,8 +31,8 @@ def LoadSurveyData(databaseName="data.db", surveyName="Survey.xlsx"):
     Every column after the UserLanguage column is treated as a question. Blank responses are not stored.
 
     Args:
-        databaseName (str): The name of the SQLite database file.
-        surveyName (str): The path to the Qualtrics Excel file.
+        databaseName (str; optional): The name of the SQLite database file.
+        surveyName (str; optional): The path to the Qualtrics Excel file.
 
     Returns:
         None
@@ -194,12 +194,12 @@ def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", bou
     Load sensor data from a folder and insert it into a SQLite database.
 
     Args:
-        databaseName (str): The name of the SQLite database file.
-        sensorFolder (str): The path to the folder containing the sensor data.
-        boundedboxes (list): A list of bounded boxes to filter the data.
-        tag (str): A tag to associate with the data.
-        rebuild (bool): Whether to rebuild the database.
-        low_memory (bool): Whether to use low memory mode when reading CSV files.
+        databaseName (str; optional): The name of the SQLite database file.
+        sensorFolder (str; optional): The path to the folder containing the sensor data.
+        boundedboxes (list; optional): A list of bounded boxes to filter the data.
+        tag (str; optional): A tag to associate with the data.
+        rebuild (bool; optional): Whether to rebuild the database.
+        low_memory (bool; optional): Whether to use low memory mode when reading CSV files.
 
     Returns:
         None

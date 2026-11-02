@@ -1,14 +1,47 @@
 import sqlite3
-
 import pandas as pd
+from .LoadRawData import LoadSettings
 
+def ListEMFACSColumns(databaseName="data.db"):
+    """
+    Return a list of all distinct EMFACS columns in the FaceData table.
+
+    Args:
+        databaseName (str or sqlite3.Connection; optional): The path to the SQLite database file or an open connection.
+
+    Returns:
+        list: The EMFACS columns, sorted alphabetically.
+    """
+    owns_connection = not isinstance(databaseName, sqlite3.Connection)
+    con = sqlite3.connect(databaseName) if owns_connection else databaseName
+    try:
+        df = pd.read_sql_query(
+            "SELECT DISTINCT property FROM FaceData ORDER BY property", con
+        )
+    finally:
+        if owns_connection:
+            con.close()
+    return df["property"].tolist()
+
+def ListLikertScales(settings=None, show_values=False):
+    """
+    Return a list of all Likert scales defined in settings.json.
+
+    Args:
+        settings (dict): Optional pre-loaded settings.
+        show_values (bool): If True, return a list of (scale_name, scale_values) tuples.
+    """
+    scales = (settings or LoadSettings()).get("LikertScales", {})
+    if show_values:
+        return sorted(scales.items())
+    return sorted(scales.keys())
 
 def ListQuestions(databaseName="data.db"):
     """
     Return a list of all distinct questions in the FullSurvey table.
 
     Args:
-        databaseName (str or sqlite3.Connection): The path to the SQLite database file or an open connection.
+        databaseName (str or sqlite3.Connection; optional): The path to the SQLite database file or an open connection.
 
     Returns:
         list: The questions, sorted alphabetically.
@@ -33,7 +66,7 @@ def LoadQuestionsWide(questions, databaseName="data.db"):
 
     Args:
         questions (list): The questions to include as columns. Duplicates are ignored.
-        databaseName (str or sqlite3.Connection): The path to the SQLite database file or an open connection.
+        databaseName (str or sqlite3.Connection; optional): The path to the SQLite database file or an open connection.
 
     Returns:
         pandas.DataFrame: A respondent_id column followed by one column per question.
@@ -77,7 +110,7 @@ def LoadQuestionsWide(questions, databaseName="data.db"):
 
 
 
-def LoadSurveyWithSensorDataWide(questions, databaseName="data.db"):
+def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=None, faceProperties=None):
     """
     Join survey responses to SensorData and FaceData in wide format, with one row per respondent and question.
 
@@ -87,7 +120,9 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db"):
 
     Args:
         questions (list): The questions to include. Duplicates are ignored.
-        databaseName (str or sqlite3.Connection): The path to the SQLite database file or an open connection.
+        tagFilter (str, optional): Filter for specific tags in the sensor data.
+        faceProperties (list, optional): List of face properties to include from the sensor data.
+        databaseName (str or sqlite3.Connection; optional): The path to the SQLite database file or an open connection.
 
     Returns:
         pandas.DataFrame: One row per (respondent_id, question) with the survey response
@@ -101,6 +136,31 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db"):
         raise ValueError("questions must contain at least one question")
     marks = ", ".join("?" * len(questions))
 
+    if tagFilter is None:
+        tagFilter = ["default",]
+
+    if not isinstance(tagFilter, (list, tuple, set)):
+        raise ValueError("tagFilter must be a list, tuple, or set")
+    tagFilter = set(tagFilter)
+    if not tagFilter:
+        raise ValueError("tagFilter must contain at least one tag")
+    tagCondition = f"AND tag IN ({', '.join('?' * len(tagFilter))})"
+    tagParams = list(tagFilter)
+
+
+    if faceProperties is not None:
+        if not isinstance(faceProperties, (list, tuple, set)):
+            raise ValueError("faceProperties must be a list, tuple, or set")
+        faceProperties = set(faceProperties)
+        if not faceProperties:
+            raise ValueError("faceProperties must contain at least one property")
+        propertyCondition = f"AND property IN ({', '.join('?' * len(faceProperties))})"
+        propertyParams = list(faceProperties)
+    else:
+        propertyCondition = ""
+        propertyParams = []
+
+
     owns_connection = not isinstance(databaseName, sqlite3.Connection)
     con = sqlite3.connect(databaseName) if owns_connection else databaseName
     try:
@@ -109,10 +169,10 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db"):
             f"WHERE question IN ({marks})", con, params=questions)
         sensor = pd.read_sql_query(
             "SELECT respondent_id, question, tag, pupil, duration FROM SensorData "
-            f"WHERE question IN ({marks})", con, params=questions)
+            f"WHERE question IN ({marks}) {tagCondition}", con, params=questions + tagParams)
         face = pd.read_sql_query(
             "SELECT respondent_id, question, tag, property, value FROM FaceData "
-            f"WHERE question IN ({marks})", con, params=questions)
+            f"WHERE question IN ({marks}) {tagCondition} {propertyCondition}", con, params=questions + tagParams + propertyParams)
     finally:
         if owns_connection:
             con.close()
@@ -149,7 +209,7 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db"):
 
     return result
 
-def LoadSurveyWithSensorDataLong(questions, databaseName="data.db"):
+def LoadSurveyWithSensorDataLong(questions, databaseName="data.db", tagFilter=None, faceProperties=None):
     """
     Join survey responses to SensorData and FaceData in long format, with one row per tag and face property.
 
@@ -158,7 +218,9 @@ def LoadSurveyWithSensorDataLong(questions, databaseName="data.db"):
 
     Args:
         questions (list): The questions to include. Duplicates are ignored.
-        databaseName (str or sqlite3.Connection): The path to the SQLite database file or an open connection.
+        databaseName (str or sqlite3.Connection; optional): The path to the SQLite database file or an open connection.
+        tagFilter (list, tuple, or set; optional): If provided, only include rows with a tag in this set.
+        faceProperties (list; optional): A list of face properties to include.
 
     Returns:
         pandas.DataFrame: One row per (respondent_id, question, tag, property) with the columns
@@ -172,6 +234,30 @@ def LoadSurveyWithSensorDataLong(questions, databaseName="data.db"):
         raise ValueError("questions must contain at least one question")
     marks = ", ".join("?" * len(questions))
 
+    if tagFilter is None:
+        tagFilter = ["default",]
+
+    if not isinstance(tagFilter, (list, tuple, set)):
+        raise ValueError("tagFilter must be a list, tuple, or set")
+    tagFilter = set(tagFilter)
+    if not tagFilter:
+        raise ValueError("tagFilter must contain at least one tag")
+    tagCondition = f"AND tag IN ({', '.join('?' * len(tagFilter))})"
+    tagParams = list(tagFilter)
+
+
+    if faceProperties is not None:
+        if not isinstance(faceProperties, (list, tuple, set)):
+            raise ValueError("faceProperties must be a list, tuple, or set")
+        faceProperties = set(faceProperties)
+        if not faceProperties:
+            raise ValueError("faceProperties must contain at least one property")
+        propertyCondition = f"AND property IN ({', '.join('?' * len(faceProperties))})"
+        propertyParams = list(faceProperties)
+    else:
+        propertyCondition = ""
+        propertyParams = []
+
     owns_connection = not isinstance(databaseName, sqlite3.Connection)
     con = sqlite3.connect(databaseName) if owns_connection else databaseName
     try:
@@ -180,10 +266,11 @@ def LoadSurveyWithSensorDataLong(questions, databaseName="data.db"):
             f"WHERE question IN ({marks})", con, params=questions)
         sensor = pd.read_sql_query(
             "SELECT respondent_id, question, tag, pupil, duration FROM SensorData "
-            f"WHERE question IN ({marks})", con, params=questions)
+            f"WHERE question IN ({marks}) {tagCondition}", con, params=questions + tagParams)
         face = pd.read_sql_query(
             "SELECT respondent_id, question, tag, property, value FROM FaceData "
-            f"WHERE question IN ({marks})", con, params=questions)
+            f"WHERE question IN ({marks}) {tagCondition} {propertyCondition}", con,
+            params=questions + tagParams + propertyParams)
     finally:
         if owns_connection:
             con.close()
