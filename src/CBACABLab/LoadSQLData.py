@@ -116,7 +116,8 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
 
     The survey is joined to SensorData and FaceData on respondent_id and question. Each tag
     gets its own columns: pupil_<tag> and duration_<tag> for SensorData, and <property>_<tag>
-    for FaceData. Missing sensor or face data becomes NaN.
+    for FaceData. When no tags are specified, a tag is not included in the column names.
+    Missing sensor or face data becomes NaN.
 
     Args:
         questions (list): The questions to include. Duplicates are ignored.
@@ -183,10 +184,14 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
         if df.empty:
             return df[key].copy()
         wide = df.pivot_table(index=key, columns=columns, values=values, aggfunc="mean")
+
+        def column_name(measure, tag):
+            return measure if tag == "default" else f"{measure}_{tag}"
+
         if isinstance(wide.columns, pd.MultiIndex) and len(values) == 1:
-            wide.columns = [f"{c[-2]}_{c[-1]}" for c in wide.columns]
+            wide.columns = [column_name(c[-2], c[-1]) for c in wide.columns]
         else:
-            wide.columns = [f"{m}_{t}" for m, t in wide.columns]
+            wide.columns = [column_name(measure, tag) for measure, tag in wide.columns]
         return wide.reset_index()
 
     sensor = widen(sensor.melt(id_vars=key + ["tag"], value_vars=["pupil", "duration"],

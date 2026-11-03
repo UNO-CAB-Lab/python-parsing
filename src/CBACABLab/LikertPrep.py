@@ -1,6 +1,6 @@
 import pandas as pd
 from .LoadRawData import LoadSettings
-from .LoadSQLData import LoadSurveyWithSensorDataWide
+from .LoadSQLData import LoadSurveyWithSensorDataWide, LoadSurveyWithSensorDataLong
 
 
 def LikertToK(responses, scale, settings=None):
@@ -81,7 +81,7 @@ def CreatePanelData(question_level_columns, respondent_level_columns, tagFilter=
     Create a panel dataset with exactly one row per respondent and question-level question.
 
     Question-level data comes from LoadSurveyWithSensorDataWide: question, response, and one column per
-    sensor measure and tag (pupil_<tag>, duration_<tag>, <property>_<tag>).
+    sensor measure and tag (pupil_<tag>, duration_<tag>, <property>_<tag>). When no tags are specified, a tag is not included in the column names.
     Respondent-level questions are added as one response column each, with their sensor and face columns suffixed by
     the question name, repeated on every row for that respondent.
 
@@ -95,13 +95,14 @@ def CreatePanelData(question_level_columns, respondent_level_columns, tagFilter=
     Returns:
         pandas.DataFrame: Merged panel dataset.
     """
+
     respondent_data = LoadSurveyWithSensorDataWide(respondent_level_columns, databaseName=databaseName, tagFilter=tagFilter, faceProperties=faceProperties)
     # One row per respondent: the response keeps the question name, other columns are suffixed with it
     respondent_data = respondent_data.rename(columns={"response": ""}).set_index(["respondent_id", "question"])
     respondent_data = respondent_data.unstack("question")
     respondent_data.columns = [question if not column else f"{column}_{question}" for column, question in respondent_data.columns]
     respondent_data = respondent_data.reset_index()
-    question_data = LoadSurveyWithSensorDataWide(question_level_columns, databaseName=databaseName, tagFilter=tagFilter, faceProperties=faceProperties)
+    question_data = LoadSurveyWithSensorDataLong(question_level_columns, databaseName=databaseName, tagFilter=tagFilter, faceProperties=faceProperties)
     merged_data = pd.merge(question_data, respondent_data, on="respondent_id", how="left")
     return merged_data
 
