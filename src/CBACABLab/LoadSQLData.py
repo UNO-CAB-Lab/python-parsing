@@ -1,6 +1,11 @@
+import re
 import sqlite3
 import pandas as pd
 from .LoadRawData import LoadSettings
+
+def _base_question(q):
+    # Strip a trailing _<digits> only if something remains before it
+    return re.sub(r"^(.+)_\d+$", r"\1", q)
 
 def ListInstrumentColumns(databaseName="data.db"):
     """
@@ -137,6 +142,8 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
     if not questions:
         raise ValueError("questions must contain at least one question")
     marks = ", ".join("?" * len(questions))
+    baseQuestions = list(dict.fromkeys(_base_question(q) for q in questions))
+    baseMarks = ", ".join("?" * len(baseQuestions))
 
     if tagFilter is None:
         tagFilter = ["default",]
@@ -170,19 +177,20 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
             f"WHERE question IN ({marks})", con, params=questions)
         sensor = pd.read_sql_query(
             "SELECT respondent_id, question, tag, pupil, duration FROM SensorData "
-            f"WHERE question IN ({marks}) {tagCondition}", con, params=questions + tagParams)
+            f"WHERE question IN ({baseMarks}) {tagCondition}", con, params=baseQuestions + tagParams)
         face = pd.read_sql_query(
             "SELECT respondent_id, question, tag, property, value FROM InstrumentData "
-            f"WHERE question IN ({marks}) {tagCondition} {propertyCondition}", con, params=questions + tagParams + propertyParams)
+            f"WHERE question IN ({baseMarks}) {tagCondition} {propertyCondition}", con, params=baseQuestions + tagParams + propertyParams)
     finally:
         if owns_connection:
             con.close()
 
     key = ["respondent_id", "question"]
+    mkey = ["respondent_id", "base"]
 
     def widen(df, columns, values):
         if df.empty:
-            return df[key].copy()
+            return df[key].copy().rename(columns={"question": "base"})
         wide = df.pivot_table(index=key, columns=columns, values=values, aggfunc="mean")
 
         def column_name(measure, tag):
@@ -192,7 +200,7 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
             wide.columns = [column_name(c[-2], c[-1]) for c in wide.columns]
         else:
             wide.columns = [column_name(measure, tag) for measure, tag in wide.columns]
-        return wide.reset_index()
+        return wide.reset_index().rename(columns={"question": "base"})
 
     sensor = widen(sensor.melt(id_vars=key + ["tag"], value_vars=["pupil", "duration"],
                                var_name="measure", value_name="value"),
@@ -200,7 +208,10 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
     face = widen(face.rename(columns={"property": "measure"}),
                  ["measure", "tag"], ["value"])
 
-    result = survey.merge(sensor, on=key, how="left").merge(face, on=key, how="left")
+    survey["base"] = survey["question"].map(_base_question)
+    result = (survey.merge(sensor, on=mkey, how="left")
+                    .merge(face, on=mkey, how="left")
+                    .drop(columns="base"))
     result["question"] = pd.Categorical(result["question"], categories=questions, ordered=True)
     result = result.sort_values(key).reset_index(drop=True)
     result["question"] = result["question"].astype(str)
@@ -238,6 +249,8 @@ def LoadSurveyWithSensorDataLong(questions, databaseName="data.db", tagFilter=No
     if not questions:
         raise ValueError("questions must contain at least one question")
     marks = ", ".join("?" * len(questions))
+    baseQuestions = list(dict.fromkeys(_base_question(q) for q in questions))
+    baseMarks = ", ".join("?" * len(baseQuestions))
 
     if tagFilter is None:
         tagFilter = ["default",]
@@ -271,17 +284,21 @@ def LoadSurveyWithSensorDataLong(questions, databaseName="data.db", tagFilter=No
             f"WHERE question IN ({marks})", con, params=questions)
         sensor = pd.read_sql_query(
             "SELECT respondent_id, question, tag, pupil, duration FROM SensorData "
-            f"WHERE question IN ({marks}) {tagCondition}", con, params=questions + tagParams)
+            f"WHERE question IN ({baseMarks}) {tagCondition}", con, params=baseQuestions + tagParams)
         face = pd.read_sql_query(
             "SELECT respondent_id, question, tag, property, value FROM InstrumentData "
-            f"WHERE question IN ({marks}) {tagCondition} {propertyCondition}", con,
-            params=questions + tagParams + propertyParams)
+            f"WHERE question IN ({baseMarks}) {tagCondition} {propertyCondition}", con,
+            params=baseQuestions + tagParams + propertyParams)
     finally:
         if owns_connection:
             con.close()
 
-    result = survey.merge(sensor, on=["respondent_id", "question"], how="left")
-    result = result.merge(face, on=["respondent_id", "question", "tag"], how="left")
+    survey["base"] = survey["question"].map(_base_question)
+    sensor = sensor.rename(columns={"question": "base"})
+    face = face.rename(columns={"question": "base"})
+    result = survey.merge(sensor, on=["respondent_id", "base"], how="left")
+    result = result.merge(face, on=["respondent_id", "base", "tag"], how="left")
+    result = result.drop(columns="base")
     result["question"] = pd.Categorical(result["question"], categories=questions, ordered=True)
     result = result.sort_values(["respondent_id", "question", "tag"]).reset_index(drop=True)
     result["question"] = result["question"].astype(str)

@@ -1,6 +1,6 @@
 import pandas as pd
 from .LoadRawData import LoadSettings
-from .LoadSQLData import LoadSurveyWithSensorDataWide, LoadSurveyWithSensorDataLong
+from .LoadSQLData import LoadSurveyWithSensorDataLong, LoadSurveyWithSensorDataWide
 
 
 def LikertToK(responses, scale, settings=None):
@@ -76,7 +76,8 @@ def AddLikertColumns(data, scales, question_column="question", response_column="
     return result
 
 
-def CreatePanelData(question_level_columns, respondent_level_columns, tagFilter=None, faceProperties=None, databaseName="data.db"):
+
+def CreatePanelData(question_level_columns, respondent_level_columns, tagFilter=None, instrumentProperties=None, databaseName="data.db"):
     """
     Create a panel dataset with exactly one row per respondent and question-level question.
 
@@ -89,20 +90,19 @@ def CreatePanelData(question_level_columns, respondent_level_columns, tagFilter=
         question_level_columns (list): List of question-level columns to include.
         respondent_level_columns (list): List of respondent-level columns to include.
         tagFilter (list, tuple, or set, optional): Only include these tags from the sensor data.
-        faceProperties (list, tuple, or set, optional): Face properties to include from the sensor data.
+        instrumentProperties (list, tuple, or set, optional): Instrument properties to include from the sensor data.
         databaseName (str, optional): Name of the SQLite database file.
 
     Returns:
         pandas.DataFrame: Merged panel dataset.
     """
 
-    respondent_data = LoadSurveyWithSensorDataWide(respondent_level_columns, databaseName=databaseName, tagFilter=tagFilter, faceProperties=faceProperties)
+    respondent_data = LoadSurveyWithSensorDataWide(respondent_level_columns, databaseName=databaseName, tagFilter=tagFilter, instrumentProperties=instrumentProperties)
     # One row per respondent: the response keeps the question name, other columns are suffixed with it
     respondent_data = respondent_data.rename(columns={"response": ""}).set_index(["respondent_id", "question"])
     respondent_data = respondent_data.unstack("question")
     respondent_data.columns = [question if not column else f"{column}_{question}" for column, question in respondent_data.columns]
     respondent_data = respondent_data.reset_index()
-    question_data = LoadSurveyWithSensorDataLong(question_level_columns, databaseName=databaseName, tagFilter=tagFilter, faceProperties=faceProperties)
+    question_data = LoadSurveyWithSensorDataLong(question_level_columns, databaseName=databaseName, tagFilter=tagFilter, instrumentProperties=instrumentProperties)
     merged_data = pd.merge(question_data, respondent_data, on="respondent_id", how="left")
     return merged_data
-
