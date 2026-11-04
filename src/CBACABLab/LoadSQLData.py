@@ -2,21 +2,21 @@ import sqlite3
 import pandas as pd
 from .LoadRawData import LoadSettings
 
-def ListEMFACSColumns(databaseName="data.db"):
+def ListInstrumentColumns(databaseName="data.db"):
     """
-    Return a list of all distinct EMFACS columns in the FaceData table.
+    Return a list of all distinct instrument columns in the InstrumentData table.
 
     Args:
         databaseName (str or sqlite3.Connection; optional): The path to the SQLite database file or an open connection.
 
     Returns:
-        list: The EMFACS columns, sorted alphabetically.
+        list: The instrument columns, sorted alphabetically.
     """
     owns_connection = not isinstance(databaseName, sqlite3.Connection)
     con = sqlite3.connect(databaseName) if owns_connection else databaseName
     try:
         df = pd.read_sql_query(
-            "SELECT DISTINCT property FROM FaceData ORDER BY property", con
+            "SELECT DISTINCT property FROM InstrumentData ORDER BY property", con
         )
     finally:
         if owns_connection:
@@ -110,24 +110,25 @@ def LoadQuestionsWide(questions, databaseName="data.db"):
 
 
 
-def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=None, faceProperties=None):
-    """
-    Join survey responses to SensorData and FaceData in wide format, with one row per respondent and question.
 
-    The survey is joined to SensorData and FaceData on respondent_id and question. Each tag
+def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=None, instrumentProperties=None):
+    """
+    Join survey responses to SensorData and InstrumentData in wide format, with one row per respondent and question.
+
+    The survey is joined to SensorData and InstrumentData on respondent_id and question. Each tag
     gets its own columns: pupil_<tag> and duration_<tag> for SensorData, and <property>_<tag>
-    for FaceData. When no tags are specified, a tag is not included in the column names.
-    Missing sensor or face data becomes NaN.
+    for InstrumentData. When no tags are specified, a tag is not included in the column names.
+    Missing sensor or instrument data becomes NaN.
 
     Args:
         questions (list): The questions to include. Duplicates are ignored.
         tagFilter (str, optional): Filter for specific tags in the sensor data.
-        faceProperties (list, optional): List of face properties to include from the sensor data.
+        instrumentProperties (list, optional): List of instrument properties to include from the instrument data.
         databaseName (str or sqlite3.Connection; optional): The path to the SQLite database file or an open connection.
 
     Returns:
         pandas.DataFrame: One row per (respondent_id, question) with the survey response
-            and the sensor and face columns described above.
+            and the sensor and instrument columns described above.
 
     Raises:
         ValueError: If questions is empty.
@@ -148,15 +149,14 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
     tagCondition = f"AND tag IN ({', '.join('?' * len(tagFilter))})"
     tagParams = list(tagFilter)
 
-
-    if faceProperties is not None:
-        if not isinstance(faceProperties, (list, tuple, set)):
-            raise ValueError("faceProperties must be a list, tuple, or set")
-        faceProperties = set(faceProperties)
-        if not faceProperties:
-            raise ValueError("faceProperties must contain at least one property")
-        propertyCondition = f"AND property IN ({', '.join('?' * len(faceProperties))})"
-        propertyParams = list(faceProperties)
+    if instrumentProperties is not None:
+        if not isinstance(instrumentProperties, (list, tuple, set)):
+            raise ValueError("instrumentProperties must be a list, tuple, or set")
+        instrumentProperties = set(instrumentProperties)
+        if not instrumentProperties:
+            raise ValueError("instrumentProperties must contain at least one property")
+        propertyCondition = f"AND property IN ({', '.join('?' * len(instrumentProperties))})"
+        propertyParams = list(instrumentProperties)
     else:
         propertyCondition = ""
         propertyParams = []
@@ -172,7 +172,7 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
             "SELECT respondent_id, question, tag, pupil, duration FROM SensorData "
             f"WHERE question IN ({marks}) {tagCondition}", con, params=questions + tagParams)
         face = pd.read_sql_query(
-            "SELECT respondent_id, question, tag, property, value FROM FaceData "
+            "SELECT respondent_id, question, tag, property, value FROM InstrumentData "
             f"WHERE question IN ({marks}) {tagCondition} {propertyCondition}", con, params=questions + tagParams + propertyParams)
     finally:
         if owns_connection:
@@ -214,18 +214,18 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
 
     return result
 
-def LoadSurveyWithSensorDataLong(questions, databaseName="data.db", tagFilter=None, faceProperties=None):
+def LoadSurveyWithSensorDataLong(questions, databaseName="data.db", tagFilter=None, instrumentProperties=None):
     """
-    Join survey responses to SensorData and FaceData in long format, with one row per tag and face property.
+    Join survey responses to SensorData and InstrumentData in long format, with one row per tag and instrument property.
 
-    The survey is joined to SensorData on respondent_id and question, and then to FaceData on
-    respondent_id, question and tag. Missing sensor or face data becomes NaN.
+    The survey is joined to SensorData on respondent_id and question, and then to InstrumentData on
+    respondent_id, question and tag. Missing sensor or instrument data becomes NaN.
 
     Args:
         questions (list): The questions to include. Duplicates are ignored.
         databaseName (str or sqlite3.Connection; optional): The path to the SQLite database file or an open connection.
         tagFilter (list, tuple, or set; optional): If provided, only include rows with a tag in this set.
-        faceProperties (list; optional): A list of face properties to include.
+        instrumentProperties (list; optional): A list of instrument properties to include.
 
     Returns:
         pandas.DataFrame: One row per (respondent_id, question, tag, property) with the columns
@@ -251,14 +251,14 @@ def LoadSurveyWithSensorDataLong(questions, databaseName="data.db", tagFilter=No
     tagParams = list(tagFilter)
 
 
-    if faceProperties is not None:
-        if not isinstance(faceProperties, (list, tuple, set)):
-            raise ValueError("faceProperties must be a list, tuple, or set")
-        faceProperties = set(faceProperties)
-        if not faceProperties:
-            raise ValueError("faceProperties must contain at least one property")
-        propertyCondition = f"AND property IN ({', '.join('?' * len(faceProperties))})"
-        propertyParams = list(faceProperties)
+    if instrumentProperties is not None:
+        if not isinstance(instrumentProperties, (list, tuple, set)):
+            raise ValueError("instrumentProperties must be a list, tuple, or set")
+        instrumentProperties = set(instrumentProperties)
+        if not instrumentProperties:
+            raise ValueError("instrumentProperties must contain at least one property")
+        propertyCondition = f"AND property IN ({', '.join('?' * len(instrumentProperties))})"
+        propertyParams = list(instrumentProperties)
     else:
         propertyCondition = ""
         propertyParams = []
@@ -273,7 +273,7 @@ def LoadSurveyWithSensorDataLong(questions, databaseName="data.db", tagFilter=No
             "SELECT respondent_id, question, tag, pupil, duration FROM SensorData "
             f"WHERE question IN ({marks}) {tagCondition}", con, params=questions + tagParams)
         face = pd.read_sql_query(
-            "SELECT respondent_id, question, tag, property, value FROM FaceData "
+            "SELECT respondent_id, question, tag, property, value FROM InstrumentData "
             f"WHERE question IN ({marks}) {tagCondition} {propertyCondition}", con,
             params=questions + tagParams + propertyParams)
     finally:

@@ -1,5 +1,5 @@
 {
-    "EMFACSColumns": [
+    "InstrumentColumns": [
         "Anger",
         "Contempt",
         "Disgust",
@@ -43,7 +43,10 @@
         "Pitch",
         "Yaw",
         "Roll",
-        "Interocular Distance"
+        "Interocular Distance",
+        "GSR Resistance CAL",
+        "GSR Conductance CAL",
+        "Heart Rate PPG ALG"
     ],
     "LikertScales": {
         "agree4": {

@@ -12,7 +12,7 @@ def LoadSettings(path=None):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
-EMFACSColumns = LoadSettings()["EMFACSColumns"]
+InstrumentColumns = LoadSettings()["InstrumentColumns"]
 
 def insertRow(con, row):
     sql = "INSERT OR REPLACE INTO FullSurvey(respondent_id, question, response) VALUES (?, ?, ?)"
@@ -86,7 +86,7 @@ def insertSensorRow(con, row):
 
 def insertFaceRow(con, row):
     cur = con.cursor()
-    cur.execute("INSERT INTO FaceData (respondent_id, question, property, value, tag) VALUES (?, ?, ?, ?, ?)", row)
+    cur.execute("INSERT INTO InstrumentData (respondent_id, question, property, value, tag) VALUES (?, ?, ?, ?, ?)", row)
     con.commit()
     cur.close()
 
@@ -170,7 +170,7 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
             (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
             ['Fixation Duration']
         ].copy()
-        for col in EMFACSColumns:
+        for col in InstrumentColumns:
             if col in filtered_df.columns:
                 dfTemp = filtered_df.loc[
                     (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
@@ -208,9 +208,9 @@ def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", bou
     cur = con.cursor()
     if rebuild:
         cur.execute("DROP TABLE IF EXISTS SensorData")
-        cur.execute("DROP TABLE IF EXISTS FaceData")
+        cur.execute("DROP TABLE IF EXISTS InstrumentData")
     cur.execute("CREATE TABLE IF NOT EXISTS SensorData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, pupil REAL, duration REAL, tag TEXT, UNIQUE(respondent_id, question, tag) ON CONFLICT REPLACE)")
-    cur.execute("CREATE TABLE IF NOT EXISTS FaceData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, property TEXT NOT NULL, value REAL, tag TEXT, UNIQUE(respondent_id, question, property, tag) ON CONFLICT REPLACE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS InstrumentData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, property TEXT NOT NULL, value REAL, tag TEXT, UNIQUE(respondent_id, question, property, tag) ON CONFLICT REPLACE)")
     con.commit()
     cur.close()
     folder = sensorFolder
