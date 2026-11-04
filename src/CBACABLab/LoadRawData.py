@@ -90,7 +90,7 @@ def insertFaceRow(con, row):
     con.commit()
     cur.close()
 
-def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
+def ExtractData(con, df, respondentid, boundedboxes=None, tag="default", questionIdtoQuestionName=None):
     df = df.rename(columns=lambda column: column.strip() if isinstance(column, str) else column)
 
     if boundedboxes is not None:
@@ -157,7 +157,10 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
     )
     for _, q in listOfQuestions.iterrows():
         question = q['question']
-        question_name = str(question).strip()
+        if questionIdtoQuestionName and question in questionIdtoQuestionName:
+            question_name = questionIdtoQuestionName[question]
+        else:
+            question_name = str(question).strip()
         start_time = q['start_time']
         end_time = q['end_time']
 
@@ -189,7 +192,7 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default"):
         row = (respondentid, question_name, float(pupil), float(duration), tag)
         insertSensorRow(con, row)
 
-def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False):
+def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False, questionIdtoQuestionName = None):
     """
     Load sensor data from a folder and insert it into a SQLite database.
 
@@ -223,4 +226,4 @@ def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", bou
         if file_extension == '.csv':
             _, respondentid = filename.split('_')
             df = pd.read_csv(folder+file, comment='#', low_memory=low_memory)
-            ExtractData(con, df, int(respondentid), boundedboxes, tag)
+            ExtractData(con, df, int(respondentid), boundedboxes, tag, questionIdtoQuestionName)
