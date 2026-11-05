@@ -350,6 +350,8 @@ def makeHeatMap(displayData, heatmapData, xlabel, ylabel, title, save=False, fig
     heatmapData.reindex_like(displayData)
     heatmapData = heatmapData[[col for col in displayData.columns if col in heatmapData.columns]]
     cmap = 'Greys_r' if reversed else 'Greys'
+    if yticklabels is None:
+        yticklabels = "auto"
     plt.figure(figsize=figsize)
     ax = sns.heatmap(heatmapData, annot=displayData, fmt='.4f', cmap=cmap, cbar_kws={'label': label}, vmin=vmin, vmax=vmax, yticklabels=yticklabels)
     ax.set_xlabel(xlabel)
