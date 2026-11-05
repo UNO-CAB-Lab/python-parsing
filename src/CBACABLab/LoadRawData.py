@@ -22,6 +22,28 @@ def insertRow(con, row):
     cur.close()
 
 
+def AutoDetermineQuestionIdtoQuestionNameMapping(surveyName="Survey.xlsx", surveyCSVName="Survey.csv"):
+    """
+    Automatically determine the mapping from question IDs to question names from a Qualtrics survey Excel file and CSV file.
+
+    Args:
+        surveyName (str): The path to the Qualtrics Excel file.
+        surveyCSVName (str): The path to the Qualtrics CSV file.
+
+    Returns:
+        dict: A dictionary mapping question IDs to question names.
+    """
+    qualtricsSurvey = pd.read_excel(surveyName, skiprows=[1])
+    qualtricsSurvey.rename(columns=lambda column: column.strip() if isinstance(column, str) else column, inplace=True)
+    qualtricsSurveyCSV = pd.read_csv(surveyCSVName)
+    qualtricsSurveyCSV.rename(columns=lambda column: column.strip() if isinstance(column, str) else column, inplace=True)
+    questionIdtoQuestionName = {}
+    for column_index, question_id in enumerate(qualtricsSurveyCSV.columns):
+        if isinstance(question_id, str) and question_id.startswith("QID"):
+            if column_index < len(qualtricsSurvey.columns):
+                questionIdtoQuestionName[question_id] = qualtricsSurvey.columns[column_index]
+    return questionIdtoQuestionName
+
 def LoadSurveyData(databaseName="data.db", surveyName="Survey.xlsx"):
     """
     Load Qualtrics survey responses from an Excel file and insert them into a SQLite database.

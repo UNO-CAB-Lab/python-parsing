@@ -1,6 +1,6 @@
 import pandas as pd
 from .LoadRawData import LoadSettings
-from .LoadSQLData import LoadSurveyWithSensorDataLong, LoadSurveyWithSensorDataWide
+from .LoadSQLData import LoadQuestionsWide, LoadSurveyWithSensorDataWide
 
 
 def LikertToK(responses, scale, settings=None):
@@ -31,8 +31,9 @@ def LikertToK(responses, scale, settings=None):
     k = normalized.map(mapping)
     unknown = responses[normalized.notna() & k.isna()].unique()
     if len(unknown):
-        raise ValueError(f"Responses not in scale: {list(unknown)}")
-    return k.astype("Int64"), max(mapping.values())
+        raise ValueError(f"Responses not in scale: {list(unknown)}")    
+    k = k.dropna().astype('int64')
+    return k, max(mapping.values()) # bound
 
 
 def AddLikertColumns(data, scales, question_column="question", response_column="response", settings=None):
@@ -63,8 +64,6 @@ def AddLikertColumns(data, scales, question_column="question", response_column="
     if missing:
         raise KeyError(f"No Likert scale given for questions: {missing}")
 
-    result["k"] = pd.array([pd.NA] * len(result), dtype="Int64")
-    result["bound"] = pd.array([pd.NA] * len(result), dtype="Int64")
     for question in questions:
         mask = result[question_column] == question
         try:
@@ -73,18 +72,18 @@ def AddLikertColumns(data, scales, question_column="question", response_column="
             raise ValueError(f"Question '{question}': {error}") from error
         result.loc[mask, "k"] = k
         result.loc[mask, "bound"] = bound
+    result = result.astype({'k': 'int64', 'bound': 'int64'})
     return result
 
 
 
 def CreatePanelData(question_level_columns, respondent_level_columns, tagFilter=None, instrumentProperties=None, databaseName="data.db"):
     """
-    Create a panel dataset with exactly one row per respondent and question-level question.
+    Create a panel dataset with exactly one row per respondent and question-level question. 
 
     Question-level data comes from LoadSurveyWithSensorDataWide: question, response, and one column per
     sensor measure and tag (pupil_<tag>, duration_<tag>, <property>_<tag>). When no tags are specified, a tag is not included in the column names.
-    Respondent-level questions are added as one response column each, with their sensor and face columns suffixed by
-    the question name, repeated on every row for that respondent.
+    Respondent-level questions are added as one response column each.
 
     Args:
         question_level_columns (list): List of question-level columns to include.
@@ -97,12 +96,7 @@ def CreatePanelData(question_level_columns, respondent_level_columns, tagFilter=
         pandas.DataFrame: Merged panel dataset.
     """
 
-    respondent_data = LoadSurveyWithSensorDataWide(respondent_level_columns, databaseName=databaseName, tagFilter=tagFilter, instrumentProperties=instrumentProperties)
-    # One row per respondent: the response keeps the question name, other columns are suffixed with it
-    respondent_data = respondent_data.rename(columns={"response": ""}).set_index(["respondent_id", "question"])
-    respondent_data = respondent_data.unstack("question")
-    respondent_data.columns = [question if not column else f"{column}_{question}" for column, question in respondent_data.columns]
-    respondent_data = respondent_data.reset_index()
-    question_data = LoadSurveyWithSensorDataLong(question_level_columns, databaseName=databaseName, tagFilter=tagFilter, instrumentProperties=instrumentProperties)
+    respondent_data = LoadQuestionsWide(respondent_level_columns, databaseName=databaseName)
+    question_data = LoadSurveyWithSensorDataWide(question_level_columns, databaseName=databaseName, tagFilter=tagFilter, instrumentProperties=instrumentProperties)
     merged_data = pd.merge(question_data, respondent_data, on="respondent_id", how="left")
     return merged_data
