@@ -31,8 +31,9 @@ def LikertToK(responses, scale, settings=None):
     k = normalized.map(mapping)
     unknown = responses[normalized.notna() & k.isna()].unique()
     if len(unknown):
-        raise ValueError(f"Responses not in scale: {list(unknown)}")
-    return k.astype("Int64"), max(mapping.values())
+        raise ValueError(f"Responses not in scale: {list(unknown)}")    
+    k = k.dropna().astype('int64')
+    return k, max(mapping.values()) # bound
 
 
 def AddLikertColumns(data, scales, question_column="question", response_column="response", settings=None):
@@ -63,8 +64,6 @@ def AddLikertColumns(data, scales, question_column="question", response_column="
     if missing:
         raise KeyError(f"No Likert scale given for questions: {missing}")
 
-    result["k"] = pd.array([pd.NA] * len(result), dtype="Int64")
-    result["bound"] = pd.array([pd.NA] * len(result), dtype="Int64")
     for question in questions:
         mask = result[question_column] == question
         try:
@@ -73,6 +72,7 @@ def AddLikertColumns(data, scales, question_column="question", response_column="
             raise ValueError(f"Question '{question}': {error}") from error
         result.loc[mask, "k"] = k
         result.loc[mask, "bound"] = bound
+    result = result.astype({'k': 'int64', 'bound': 'int64'})
     return result
 
 
