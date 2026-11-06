@@ -12,7 +12,7 @@ pip install CBACABLab
 To install this module with conda, you can use the following command:
 
 ```
-conda install -c tazzben cbacablab
+conda install -c tazzben CBACABLab
 ```
 
 If you don't yet have Python installed, we recommend installing Anaconda, which is a open-source distribution of Python that includes useful packages for data analysis. You can download Anaconda from [here](https://www.anaconda.com/products/distribution). We also recommend you install Microsoft [Visual Studio Code](https://code.visualstudio.com/) to work with notebook files.
