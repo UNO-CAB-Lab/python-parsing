@@ -4,4 +4,4 @@ from .LoadRawData import LoadSurveyData, LoadSensorData, AutoDetermineQuestionId
 from .LoadSQLData import ListQuestions, LoadQuestionsWide, LoadSurveyWithSensorDataLong, LoadSurveyWithSensorDataWide, ListInstrumentColumns, ListLikertScales
 from .LikertPrep import LikertToK, AddLikertColumns, CreatePanelData
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'

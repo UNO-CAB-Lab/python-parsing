@@ -4,6 +4,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 import sqlite3
 import os
 import json
+from tqdm import tqdm
 
 def LoadSettings(path=None):
     """Load module settings from settings.json (or the given JSON file)."""
@@ -243,7 +244,7 @@ def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", bou
         raise FileNotFoundError(f"Sensor folder does not exist: {folder}")
     
     f = os.listdir(folder)
-    for file in f:
+    for file in tqdm(f, desc="Processing sensor files"):
         filename, file_extension = os.path.splitext(file)
         if file_extension == '.csv':
             _, respondentid = filename.split('_')
