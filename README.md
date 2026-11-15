@@ -16,3 +16,7 @@ conda install -c tazzben CBACABLab
 ```
 
 If you don't yet have Python installed, we recommend installing Anaconda, which is a open-source distribution of Python that includes useful packages for data analysis. You can download Anaconda from [here](https://www.anaconda.com/products/distribution). We also recommend you install Microsoft [Visual Studio Code](https://code.visualstudio.com/) to work with notebook files.
+
+## Thanks to GitBook
+
+As an open source project, GitBook has provided our documentation site for free.  We appreciate their support.
