@@ -113,7 +113,32 @@ def LoadQuestionsWide(questions, databaseName="data.db"):
             df[column] = converted
     return df
 
+def normalizeSensorDataByRespondent(sensor_data, sensor_columns=["pupil", "duration"]):
+    """
+    Normalize sensor data by respondent, so that each respondent's data has a mean of 0 and a standard deviation of 1 for each sensor column.
+    
+    Args:
+        sensor_data (pandas.DataFrame): The sensor data to normalize. Must contain a "respondent_id" column and the specified sensor columns.
+        sensor_columns (list): List of sensor columns to normalize. Default is ["pupil", "duration"].   
 
+    Returns:
+        pandas.DataFrame: A new DataFrame with the normalized sensor data, with additional columns for each normalized sensor column (e.g., "pupil_normalized", "duration_normalized").
+    
+    """
+    sensor_data_normalized = sensor_data.copy()
+    for respondent_id in sensor_data["respondent_id"].unique():
+        respondent_data = sensor_data[sensor_data["respondent_id"] == respondent_id]
+
+        for column in sensor_columns:
+            if column not in respondent_data.columns:
+                raise ValueError(f"Column '{column}' not found in sensor data.")
+            sensor_mean = respondent_data[column].mean()
+            sensor_std = respondent_data[column].std()
+            sensor_data_normalized.loc[sensor_data_normalized["respondent_id"] == respondent_id, f"{column}_normalized"] = (
+                (sensor_data_normalized.loc[sensor_data_normalized["respondent_id"] == respondent_id, column] - sensor_mean) / sensor_std
+            )
+        
+    return sensor_data_normalized
 
 
 def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=None, instrumentProperties=None):
