@@ -2,6 +2,8 @@ import re
 import sqlite3
 import pandas as pd
 from .LoadRawData import LoadSettings
+from functools import partial
+
 
 def _base_question(q):
     # Strip a trailing _<digits> only if something remains before it
@@ -113,32 +115,56 @@ def LoadQuestionsWide(questions, databaseName="data.db"):
             df[column] = converted
     return df
 
-def normalizeSensorDataByRespondent(sensor_data, sensor_columns=["pupil", "duration"]):
+def normalizeSensorDataByRespondent(sensor_data, sensor_columns=["pupil", "duration"], id="respondent_id"):
     """
     Normalize sensor data by respondent, so that each respondent's data has a mean of 0 and a standard deviation of 1 for each sensor column.
     
     Args:
-        sensor_data (pandas.DataFrame): The sensor data to normalize. Must contain a "respondent_id" column and the specified sensor columns.
+        sensor_data (pandas.DataFrame): The sensor data to normalize. 
         sensor_columns (list): List of sensor columns to normalize. Default is ["pupil", "duration"].   
+        id (str): The name of the column containing the respondent IDs. Default is "respondent_id".
 
+        
     Returns:
         pandas.DataFrame: A new DataFrame with the normalized sensor data, with additional columns for each normalized sensor column (e.g., "pupil_normalized", "duration_normalized").
     
     """
     sensor_data_normalized = sensor_data.copy()
-    for respondent_id in sensor_data["respondent_id"].unique():
-        respondent_data = sensor_data[sensor_data["respondent_id"] == respondent_id]
+    for respondent_id in sensor_data[id].unique():
+        respondent_data = sensor_data[sensor_data[id] == respondent_id]
 
         for column in sensor_columns:
             if column not in respondent_data.columns:
                 raise ValueError(f"Column '{column}' not found in sensor data.")
             sensor_mean = respondent_data[column].mean()
-            sensor_std = respondent_data[column].std()
-            sensor_data_normalized.loc[sensor_data_normalized["respondent_id"] == respondent_id, f"{column}_normalized"] = (
-                (sensor_data_normalized.loc[sensor_data_normalized["respondent_id"] == respondent_id, column] - sensor_mean) / sensor_std
+            sensor_std = respondent_data[column].std(ddof=0)
+            sensor_data_normalized.loc[sensor_data_normalized[id] == respondent_id, f"{column}_normalized"] = (
+                (sensor_data_normalized.loc[sensor_data_normalized[id] == respondent_id, column] - sensor_mean) / sensor_std
             )
         
     return sensor_data_normalized
+
+pop_std = partial(pd.Series.std, ddof=0)
+pop_std.__name__ = "std"
+
+def returnDescriptiveStatsByRespondent(sensor_data, sensor_columns=["pupil", "duration"], id="respondent_id"):
+    """
+    Calculate descriptive statistics (mean, standard deviation, count, min, max) for each respondent's sensor data.
+
+    Args:
+        sensor_data (pandas.DataFrame): The sensor data to analyze.
+        sensor_columns (list): List of sensor columns to analyze. Default is ["pupil", "duration"].
+        id (str): The name of the column containing the respondent IDs. Default is "respondent_id".
+
+    Returns:
+        pandas.DataFrame: A new DataFrame with one row per respondent and columns for each descriptive statistic for each sensor column.
+    """
+
+    stats = sensor_data.groupby(id)[
+        sensor_columns
+    ].agg(["mean", pop_std, "count", "min", "max"])
+
+    return pd.DataFrame(stats)
 
 
 def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=None, instrumentProperties=None):
