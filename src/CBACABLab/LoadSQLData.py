@@ -227,7 +227,7 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
             "SELECT respondent_id, question, response FROM FullSurvey "
             f"WHERE question IN ({marks})", con, params=questions)
         sensor = pd.read_sql_query(
-            "SELECT respondent_id, question, tag, pupil, duration FROM SensorData "
+            "SELECT respondent_id, question, tag, pupil, duration, timeontask FROM SensorData "
             f"WHERE question IN ({baseMarks}) {tagCondition}", con, params=baseQuestions + tagParams)
         face = pd.read_sql_query(
             "SELECT respondent_id, question, tag, property, value FROM InstrumentData "
@@ -253,7 +253,7 @@ def LoadSurveyWithSensorDataWide(questions, databaseName="data.db", tagFilter=No
             wide.columns = [column_name(measure, tag) for measure, tag in wide.columns]
         return wide.reset_index().rename(columns={"question": "base"})
 
-    sensor = widen(sensor.melt(id_vars=key + ["tag"], value_vars=["pupil", "duration"],
+    sensor = widen(sensor.melt(id_vars=key + ["tag"], value_vars=["pupil", "duration", "timeontask"],
                                var_name="measure", value_name="value"),
                    ["measure", "tag"], ["value"])
     face = widen(face.rename(columns={"property": "measure"}),
@@ -334,7 +334,7 @@ def LoadSurveyWithSensorDataLong(questions, databaseName="data.db", tagFilter=No
             "SELECT respondent_id, question, response FROM FullSurvey "
             f"WHERE question IN ({marks})", con, params=questions)
         sensor = pd.read_sql_query(
-            "SELECT respondent_id, question, tag, pupil, duration FROM SensorData "
+            "SELECT respondent_id, question, tag, pupil, duration, timeontask FROM SensorData "
             f"WHERE question IN ({baseMarks}) {tagCondition}", con, params=baseQuestions + tagParams)
         face = pd.read_sql_query(
             "SELECT respondent_id, question, tag, property, value FROM InstrumentData "

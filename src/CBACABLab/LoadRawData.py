@@ -103,7 +103,7 @@ def LoadSurveyData(databaseName="data.db", surveyName="Survey.xlsx"):
 
 def insertSensorRow(con, row):
     cur = con.cursor()
-    cur.execute("INSERT INTO SensorData (respondent_id, question, pupil, duration, tag) VALUES (?, ?, ?, ?, ?)", row)
+    cur.execute("INSERT INTO SensorData (respondent_id, question, pupil, duration, timeontask, tag) VALUES (?, ?, ?, ?, ?, ?)", row)
     con.commit()
     cur.close()
 
@@ -186,6 +186,7 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default", questio
             question_name = str(question).strip()
         start_time = q['start_time']
         end_time = q['end_time']
+        timeontask = end_time - start_time
 
         df2 = filtered_df.loc[
             (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
@@ -212,7 +213,7 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default", questio
         df2 = df2.dropna(subset=['ET_PupilLeft', 'ET_PupilRight'])
         pupil = (df2['ET_PupilLeft'].mean() + df2['ET_PupilRight'].mean()) / 2
         duration = df3['Fixation Duration'].mean() 
-        row = (respondentid, question_name, float(pupil), float(duration), tag)
+        row = (respondentid, question_name, float(pupil), float(duration), float(timeontask), tag)
         insertSensorRow(con, row)
 
 def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False, questionIdtoQuestionName = None):
@@ -235,7 +236,7 @@ def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", bou
     if rebuild:
         cur.execute("DROP TABLE IF EXISTS SensorData")
         cur.execute("DROP TABLE IF EXISTS InstrumentData")
-    cur.execute("CREATE TABLE IF NOT EXISTS SensorData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, pupil REAL, duration REAL, tag TEXT, UNIQUE(respondent_id, question, tag) ON CONFLICT REPLACE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS SensorData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, pupil REAL, duration REAL, timeontask REAL, tag TEXT, UNIQUE(respondent_id, question, tag) ON CONFLICT REPLACE)")
     cur.execute("CREATE TABLE IF NOT EXISTS InstrumentData (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, respondent_id INTEGER NOT NULL, question TEXT NOT NULL, property TEXT NOT NULL, value REAL, tag TEXT, UNIQUE(respondent_id, question, property, tag) ON CONFLICT REPLACE)")
     con.commit()
     cur.close()
