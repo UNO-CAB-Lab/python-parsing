@@ -5,6 +5,12 @@ import sqlite3
 import os
 import json
 from tqdm import tqdm
+import re
+
+def _base_question(q):
+    # Strip a trailing _<digits> only if something remains before it
+    return re.sub(r"^(.+)_\d+$", r"\1", q)
+
 
 def LoadSettings(path=None):
     """Load module settings from settings.json (or the given JSON file)."""
@@ -35,9 +41,9 @@ def AutoDetermineQuestionIdtoQuestionNameMapping(surveyName="Survey.xlsx", surve
         dict: A dictionary mapping question IDs to question names.
     """
     qualtricsSurvey = pd.read_excel(surveyName, skiprows=[1])
-    qualtricsSurvey.rename(columns=lambda column: column.strip() if isinstance(column, str) else column, inplace=True)
+    qualtricsSurvey.rename(columns=lambda column: _base_question(column.strip()) if isinstance(column, str) else column, inplace=True)
     qualtricsSurveyCSV = pd.read_csv(surveyCSVName)
-    qualtricsSurveyCSV.rename(columns=lambda column: column.strip() if isinstance(column, str) else column, inplace=True)
+    qualtricsSurveyCSV.rename(columns=lambda column: _base_question(column.strip()) if isinstance(column, str) else column, inplace=True)
     questionIdtoQuestionName = {}
     for column_index, question_id in enumerate(qualtricsSurveyCSV.columns):
         if isinstance(question_id, str) and question_id.startswith("QID"):
@@ -180,8 +186,9 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default", questio
     )
     for _, q in listOfQuestions.iterrows():
         question = q['question']
-        if questionIdtoQuestionName and question in questionIdtoQuestionName:
-            question_name = questionIdtoQuestionName[question]
+        questionShort = _base_question(question)
+        if questionIdtoQuestionName and questionShort in questionIdtoQuestionName:
+            question_name = questionIdtoQuestionName[questionShort]
         else:
             question_name = str(question).strip()
         start_time = q['start_time']

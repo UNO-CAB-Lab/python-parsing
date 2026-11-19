@@ -1,13 +1,7 @@
-import re
 import sqlite3
 import pandas as pd
-from .LoadRawData import LoadSettings
+from .LoadRawData import LoadSettings, _base_question
 from functools import partial
-
-
-def _base_question(q):
-    # Strip a trailing _<digits> only if something remains before it
-    return re.sub(r"^(.+)_\d+$", r"\1", q)
 
 def ListInstrumentColumns(databaseName="data.db"):
     """
