@@ -119,7 +119,12 @@ def insertFaceRow(con, row):
     con.commit()
     cur.close()
 
-def ExtractData(con, df, respondentid, boundedboxes=None, tag="default", questionIdtoQuestionName=None):
+def ExtractData(con, df, respondentid, boundedboxes=None, tag="default", questionIdtoQuestionName=None, agg = "mean"):
+    allowed_agg = ["mean", "median", "sum", "min", "max", "std", "var"]
+    
+    if agg not in allowed_agg:
+        raise ValueError(f"Invalid aggregation method: {agg}. Allowed methods are: {allowed_agg}")
+    
     df = df.rename(columns=lambda column: column.strip() if isinstance(column, str) else column)
 
     if boundedboxes is not None:
@@ -210,20 +215,21 @@ def ExtractData(con, df, respondentid, boundedboxes=None, tag="default", questio
                     (filtered_df['Timestamp'] >= start_time) & (filtered_df['Timestamp'] <= end_time),
                     col
                 ].copy()
-                featureMean = dfTemp.mean()
-                if not pd.isna(featureMean):
-                    row = (respondentid, question_name, col, featureMean, tag)
+                dfTemp = pd.to_numeric(dfTemp, errors='coerce').dropna()
+                featureValue = dfTemp.agg(agg)
+                if not pd.isna(featureValue):
+                    row = (respondentid, question_name, col, featureValue, tag)
                     insertFaceRow(con, row)
 
         df2['ET_PupilLeft'] = pd.to_numeric(df2['ET_PupilLeft'], errors='coerce')
         df2['ET_PupilRight'] = pd.to_numeric(df2['ET_PupilRight'], errors='coerce')
         df2 = df2.dropna(subset=['ET_PupilLeft', 'ET_PupilRight'])
-        pupil = (df2['ET_PupilLeft'].mean() + df2['ET_PupilRight'].mean()) / 2
-        duration = df3['Fixation Duration'].mean() 
+        pupil = pd.concat([df2['ET_PupilLeft'], df2['ET_PupilRight']], ignore_index=True).agg(agg)
+        duration = pd.to_numeric(df3['Fixation Duration'], errors='coerce').dropna().agg(agg)
         row = (respondentid, question_name, float(pupil), float(duration), float(timeontask), tag)
         insertSensorRow(con, row)
 
-def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False, questionIdtoQuestionName = None):
+def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", boundedboxes = None, tag = "default", rebuild = False, low_memory = False, questionIdtoQuestionName = None, agg = "mean"):
     """
     Load sensor data from a folder and insert it into a SQLite database.
 
@@ -234,6 +240,8 @@ def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", bou
         tag (str; optional): A tag to associate with the data.
         rebuild (bool; optional): Whether to rebuild the database.
         low_memory (bool; optional): Whether to use low memory mode when reading CSV files.
+        questionIdtoQuestionName (dict; optional): A mapping from question IDs to question names/labels.
+        agg (str; optional): The aggregation function to use when calculating feature values. Mean is the default. Other options include median, sum, min, max, std, and var.
 
     Returns:
         None
@@ -257,4 +265,4 @@ def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", bou
         if file_extension == '.csv':
             _, respondentid = filename.split('_')
             df = pd.read_csv(folder+file, comment='#', low_memory=low_memory)
-            ExtractData(con, df, int(respondentid), boundedboxes, tag, questionIdtoQuestionName)
+            ExtractData(con, df, int(respondentid), boundedboxes, tag, questionIdtoQuestionName, agg)

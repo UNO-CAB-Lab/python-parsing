@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "CBACABLab"
-version = "0.0.5"
+version = "0.0.6"
 description = "Tools for loading, joining, and plotting survey and iMotions sensor data."
 license = "MIT"
 authors = [

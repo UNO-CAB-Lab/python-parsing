@@ -46,7 +46,12 @@
         "Interocular Distance",
         "GSR Resistance CAL",
         "GSR Conductance CAL",
-        "Heart Rate PPG ALG"
+        "Heart Rate PPG ALG",
+        "Saccade Duration",
+        "Saccade Amplitude",
+        "Saccade Peak Velocity",
+        "Saccade Peak Acceleration",
+        "Saccade Peak Deceleration"
     ],
     "LikertScales": {
         "agree4": {
