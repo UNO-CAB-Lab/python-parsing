@@ -264,5 +264,7 @@ def LoadSensorData(databaseName = "data.db", sensorFolder = "./sensorData/", bou
         filename, file_extension = os.path.splitext(file)
         if file_extension == '.csv':
             _, respondentid = filename.split('_')
+            if int(respondentid) in (99, 999):
+                continue
             df = pd.read_csv(folder+file, comment='#', low_memory=low_memory)
             ExtractData(con, df, int(respondentid), boundedboxes, tag, questionIdtoQuestionName, agg)
